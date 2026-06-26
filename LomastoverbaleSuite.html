@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LomastoverbaleSuite</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap');
+:root {
+  --ink:#0F1923;--ink2:#1E2D3D;--slate:#354A5E;--fog:#8496A8;--line:#D4DCE4;
+  --paper:#F7F5F0;--white:#FFFFFF;--gold:#B8860B;--gold-light:#F0E6C8;--gold-pale:#FAF5E4;
+  --emerald:#1A6B47;--emerald-bg:#E4F2EB;--amber:#B05C00;--amber-bg:#FDE8CC;
+  --crimson:#991B1B;--crimson-bg:#FEE2E2;--sky:#1E4D8C;--sky-bg:#DDEAF7;--r:10px;
+  --shadow:0 2px 16px rgba(15,25,35,.08);--shadow-lg:0 8px 40px rgba(15,25,35,.14);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;line-height:1.6;}
+
+.topbar{background:var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:60px;position:sticky;top:0;z-index:100;border-bottom:2px solid var(--gold);}
+.topbar-brand{display:flex;align-items:baseline;gap:10px;}
+.topbar-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--white);letter-spacing:-.02em;}
+.topbar-logo span{color:var(--gold);}
+.topbar-tag{font-size:10px;color:rgba(255,255,255,.35);font-family:'DM Mono',monospace;letter-spacing:.08em;text-transform:uppercase;}
+.topbar-actions{display:flex;gap:8px;align-items:center;}
+
+/* SAVE INDICATOR */
+.save-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:'DM Mono',monospace;font-size:10px;
+  padding:4px 10px;border-radius:12px;letter-spacing:.04em;
+  background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);
+  border:1px solid rgba(255,255,255,.1);transition:all .4s;
+}
+.save-badge.saved{background:rgba(26,107,71,.25);color:#5dbd8a;border-color:rgba(26,107,71,.4);}
+.save-badge.unsaved{background:rgba(184,134,11,.2);color:#d4a843;border-color:rgba(184,134,11,.35);}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:6px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .18s;letter-spacing:.01em;white-space:nowrap;}
+.btn-ghost{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);}
+.btn-ghost:hover{background:rgba(255,255,255,.15);color:#fff;}
+.btn-gold{background:var(--gold);color:var(--ink);}
+.btn-gold:hover{background:#c9970f;transform:translateY(-1px);box-shadow:0 4px 12px rgba(184,134,11,.3);}
+.btn-save{background:#1a4a2e;color:#5dbd8a;border:1px solid #2a7a4e;}
+.btn-save:hover{background:#1e5c38;color:#6dd4a0;transform:translateY(-1px);}
+.btn-outline{background:#fff;color:var(--ink2);border:1.5px solid var(--line);}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold);}
+.btn-emerald{background:var(--emerald);color:#fff;}
+.btn-emerald:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn-sky{background:var(--sky);color:#fff;}
+.btn-sky:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn-danger{background:rgba(153,27,27,.15);color:var(--crimson);border:1px solid rgba(153,27,27,.2);}
+.btn-danger:hover{background:var(--crimson);color:#fff;}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;}
+
+.app-shell{display:flex;min-height:calc(100vh - 60px);}
+
+/* SIDEBAR */
+.sidebar{width:268px;flex-shrink:0;background:var(--white);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+.sidebar-sec{padding:20px 16px 8px;}
+.sidebar-lbl{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fog);font-family:'DM Mono',monospace;margin-bottom:10px;}
+.import-btn-wrap{margin:0 12px 8px;}
+.import-btn{width:100%;padding:12px;border:2px dashed var(--line);border-radius:var(--r);background:var(--paper);cursor:pointer;text-align:center;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.import-btn:hover{border-color:var(--gold);background:var(--gold-pale);}
+.import-icon{font-size:20px;margin-bottom:3px;}
+.import-text{font-size:11px;color:var(--fog);}
+.import-text strong{display:block;font-size:12px;color:var(--ink2);margin-bottom:1px;}
+
+/* SAVE SECTION in sidebar */
+.sidebar-save{margin:0 12px 14px;display:flex;flex-direction:column;gap:6px;}
+.save-info{font-size:10px;color:var(--fog);font-family:'DM Mono',monospace;text-align:center;padding:4px 0;}
+
+.verbale-list{flex:1;overflow-y:auto;padding:0 8px 8px;}
+.verbale-item{padding:10px;border-radius:8px;cursor:pointer;margin-bottom:4px;transition:background .15s;display:flex;flex-direction:column;gap:3px;position:relative;}
+.verbale-item:hover{background:var(--paper);}
+.verbale-item.active{background:var(--gold-pale);border-left:3px solid var(--gold);padding-left:7px;}
+.verbale-item-name{font-size:12px;font-weight:600;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:20px;}
+.verbale-item-meta{font-size:10px;color:var(--fog);font-family:'DM Mono',monospace;}
+.verbale-item-del{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--fog);opacity:0;background:none;border:none;cursor:pointer;padding:4px;transition:opacity .15s,color .15s;border-radius:4px;}
+.verbale-item:hover .verbale-item-del{opacity:1;}
+.verbale-item-del:hover{color:var(--crimson);background:var(--crimson-bg);}
+.sidebar-empty{text-align:center;padding:20px 14px;font-size:11px;color:var(--fog);font-style:italic;}
+
+/* DANGER ZONE */
+.sidebar-bottom{padding:10px 12px 16px;border-top:1px solid var(--line);margin-top:auto;}
+
+/* STAGE */
+.stage{flex:1;overflow-y:auto;background:var(--paper);}
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* WELCOME */
+.welcome-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 60px);padding:40px;text-align:center;}
+.welcome-icon{font-size:56px;margin-bottom:20px;opacity:.7;}
+.welcome-title{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:700;color:var(--ink);margin-bottom:10px;letter-spacing:-.02em;}
+.welcome-sub{font-size:15px;color:var(--fog);max-width:500px;line-height:1.7;margin-bottom:32px;}
+.steps{display:flex;gap:18px;margin-bottom:36px;flex-wrap:wrap;justify-content:center;}
+.step-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;width:160px;text-align:left;box-shadow:var(--shadow);}
+.step-n{width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:9px;}
+.step-card h4{font-size:12px;font-weight:600;margin-bottom:3px;}
+.step-card p{font-size:11px;color:var(--fog);line-height:1.5;}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;z-index:200;background:rgba(15,25,35,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--white);border-radius:14px;padding:36px;width:min(580px,94vw);box-shadow:var(--shadow-lg);transform:translateY(20px);transition:transform .25s;max-height:90vh;overflow-y:auto;}
+.overlay.open .modal{transform:translateY(0);}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.modal-sub{font-size:13px;color:var(--fog);margin-bottom:22px;line-height:1.6;}
+.howto-box{background:var(--sky-bg);border:1px solid #b8d4ef;border-radius:8px;padding:14px 16px;margin-bottom:18px;font-size:12px;color:var(--sky);line-height:1.8;}
+.howto-box strong{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px;}
+.howto-box ol{padding-left:16px;}
+.howto-box li{margin-bottom:3px;}
+.howto-box code{background:rgba(30,77,140,.1);padding:1px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;}
+.form-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.form-field label{font-size:11px;font-weight:600;color:var(--slate);letter-spacing:.04em;}
+.form-field input,.form-field textarea,.form-field select{padding:9px 12px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--white);transition:border-color .15s;}
+.form-field input:focus,.form-field textarea:focus{outline:none;border-color:var(--gold);}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+.json-preview{background:#1a1a2e;border-radius:8px;padding:14px;font-family:'DM Mono',monospace;font-size:10px;color:#aae;max-height:130px;overflow-y:auto;margin-top:8px;line-height:1.6;white-space:pre-wrap;word-break:break-all;cursor:text;user-select:all;}
+.validate-ok{color:var(--emerald);font-size:11px;font-weight:600;margin-top:5px;}
+.validate-err{color:var(--crimson);font-size:11px;font-weight:600;margin-top:5px;}
+
+/* REPORT */
+.report-screen{padding:30px 34px 60px;max-width:1200px;margin:0 auto;}
+.report-topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:26px;flex-wrap:wrap;}
+.report-crumb{font-size:10px;color:var(--fog);font-family:'DM Mono',monospace;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+.report-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1.1;}
+.report-sub{font-size:13px;color:var(--fog);margin-top:4px;}
+.report-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-top:4px;}
+
+.report-tabs{display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:26px;overflow-x:auto;scrollbar-width:none;}
+.report-tabs::-webkit-scrollbar{display:none;}
+.rtab{padding:11px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.rtab:hover{color:var(--ink2);}
+.rtab.active{color:var(--ink);border-bottom-color:var(--gold);}
+.rtab-panel{display:none;}
+.rtab-panel.active{display:block;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:13px;margin-bottom:26px;}
+.stat-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 12px;box-shadow:var(--shadow);}
+.stat-lbl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--fog);font-family:'DM Mono',monospace;margin-bottom:7px;}
+.stat-val{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:700;color:var(--ink);line-height:1;}
+.stat-sub{font-size:11px;color:var(--fog);margin-top:3px;}
+.stat-accent{border-top:3px solid var(--gold);}
+
+.panel-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);margin-bottom:18px;}
+.panel-head{padding:13px 18px;background:var(--ink2);display:flex;align-items:center;justify-content:space-between;}
+.panel-head h3{font-size:11px;font-weight:600;color:rgba(255,255,255,.7);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace;}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:var(--ink);}
+thead th{padding:10px 13px;text-align:left;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);font-family:'DM Mono',monospace;white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--line);transition:background .12s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--paper);}
+tbody td{padding:10px 13px;vertical-align:middle;}
+tfoot tr{background:var(--ink);}
+tfoot td{padding:10px 13px;font-family:'DM Mono',monospace;font-size:12px;color:var(--gold);font-weight:600;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;font-family:'DM Mono',monospace;}
+.bg{background:var(--emerald-bg);color:var(--emerald);}
+.ba{background:var(--amber-bg);color:var(--amber);}
+.br{background:var(--crimson-bg);color:var(--crimson);}
+.bs{background:var(--sky-bg);color:var(--sky);}
+.bgold{background:var(--gold-light);color:var(--gold);}
+.bgr{background:var(--line);color:var(--slate);}
+
+.mbar{display:flex;align-items:center;gap:8px;}
+.mbar-t{flex:1;height:6px;background:var(--line);border-radius:3px;min-width:50px;}
+.mbar-f{height:100%;border-radius:3px;background:linear-gradient(to right,var(--sky),var(--gold));}
+.mbar-v{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;min-width:30px;text-align:right;}
+
+.odg-card{background:var(--white);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);margin-bottom:14px;}
+.odg-head{display:flex;align-items:center;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line);}
+.odg-num{width:34px;height:34px;border-radius:7px;background:var(--ink);color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.odg-head h3{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:700;flex:1;color:var(--ink);}
+.odg-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;padding:13px 18px;border-bottom:1px solid var(--line);}
+.odg-f label{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--fog);font-family:'DM Mono',monospace;display:block;margin-bottom:3px;}
+.odg-f p{font-size:13px;}
+.odg-note{padding:11px 18px;font-size:13px;color:var(--slate);font-style:italic;line-height:1.6;background:var(--paper);}
+
+.rel-block{background:var(--white);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);margin-bottom:14px;}
+.rel-head{display:flex;align-items:center;gap:11px;padding:13px 18px;background:var(--ink2);}
+.rel-n{width:27px;height:27px;border-radius:6px;background:var(--gold);color:var(--ink);font-family:'DM Mono',monospace;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rel-head h3{font-size:13px;font-weight:600;color:#fff;}
+.rel-body{padding:16px 18px;font-size:13.5px;line-height:1.8;color:var(--slate);}
+
+.fbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+.fbar label{font-size:11px;color:var(--fog);font-weight:600;}
+.fsel{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:var(--white);color:var(--ink);font-family:'DM Sans',sans-serif;cursor:pointer;}
+.urg-sel,.stato-sel{padding:4px 7px;border:1px solid var(--line);border-radius:4px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;width:100%;background:var(--white);}
+.uu{background:#fee2e2;border-color:#fca5a5;}
+.ua{background:#fde8cc;border-color:#fdba74;}
+.um{background:#fefce8;border-color:#fde68a;}
+.ub{background:#e4f2eb;border-color:#86efac;}
+
+/* VERBALE ORIGINALE */
+.verbale-doc{max-width:780px;margin:0 auto;padding:40px 48px 60px;background:var(--white);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);min-height:400px;}
+.verbale-doc-empty{text-align:center;padding:60px 20px;color:var(--fog);font-style:italic;font-size:14px;}
+.verbale-doc-empty .empty-icon{font-size:40px;margin-bottom:12px;opacity:.4;}
+.verbale-testo{font-family:'Cormorant Garamond',serif;font-size:16px;line-height:2;color:var(--ink2);white-space:pre-wrap;word-break:break-word;tab-size:4;}
+.verbale-testo p{margin-bottom:1.1em;}
+.verbale-doc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--gold-light);}
+.verbale-doc-header h2{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.01em;}
+.verbale-doc-meta{font-size:11px;color:var(--fog);font-family:'DM Mono',monospace;}
+
+/* GOOGLE DRIVE SYNC */
+.drive-bar{display:flex;align-items:center;gap:7px;padding:10px 12px;background:var(--paper);border-bottom:1px solid var(--line);font-size:11px;}
+.drive-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.drive-dot.connected{background:#34a853;}
+.drive-dot.disconnected{background:var(--fog);}
+.drive-dot.syncing{background:var(--gold);animation:pulse 1s infinite;}
+.drive-dot.error{background:var(--crimson);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.drive-status{flex:1;color:var(--slate);font-family:'DM Mono',monospace;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.btn-drive{background:#fff;color:#3c4043;border:1px solid #dadce0;font-size:11px;padding:5px 10px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:'DM Sans',sans-serif;font-weight:500;transition:box-shadow .15s;}
+.btn-drive:hover{box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.btn-drive svg{width:14px;height:14px;flex-shrink:0;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--ink);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-left:4px solid var(--emerald);}
+.toast.error{border-left:4px solid var(--crimson);}
+.toast.info{border-left:4px solid var(--gold);}
+
+@media print{.topbar,.sidebar,.report-actions,.fbar,.report-tabs{display:none!important;}.rtab-panel{display:block!important;}.stage,.report-screen{padding:0;}.app-shell{display:block;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">Lomasto Verbale<span>Suite</span></div>
+    <div class="topbar-tag">Gestione Verbali Assembleari</div>
+  </div>
+  <div class="topbar-actions">
+    <span class="save-badge" id="save-badge">● nessun dato</span>
+    <button class="btn btn-save" onclick="saveHTMLFile()" title="Scarica versione aggiornata del file con tutti i dati incorporati">💾 Salva file</button>
+    <button class="btn btn-ghost" onclick="openImport()">📥 Importa JSON</button>
+    <button class="btn btn-gold" onclick="openImport()">＋ Verbale</button>
+  </div>
+</div>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-sec">
+      <div class="sidebar-lbl">Archivio Verbali</div>
+    </div>
+    <div class="import-btn-wrap">
+      <label class="import-btn" onclick="openImport()">
+        <div class="import-icon">📋</div>
+        <div class="import-text"><strong>Aggiungi verbale</strong>Incolla il JSON da Claude</div>
+      </label>
+    </div>
+
+    <!-- SAVE SECTION -->
+    <div class="sidebar-save">
+      <button class="btn btn-save" style="width:100%;justify-content:center;" onclick="saveHTMLFile()">
+        💾 Salva file aggiornato
+      </button>
+      <div class="save-info" id="save-info">Salva per preservare i dati alla riapertura</div>
+    </div>
+
+    <!-- GOOGLE DRIVE SYNC -->
+    <div class="drive-bar" id="drive-bar">
+      <div class="drive-dot disconnected" id="drive-dot"></div>
+      <div class="drive-status" id="drive-status">Drive non connesso</div>
+      <button class="btn-drive" id="drive-btn" onclick="driveConnect()">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11L4 22H20L12 11Z" fill="#0F9D58"/><path d="M20 22L14 11H22L20 22Z" fill="#4285F4" opacity=".5"/><path d="M8 2L2 12L6 19L12 9L8 2Z" fill="#FBBC05"/><path d="M16 2H8L12 9L16 2Z" fill="#EA4335" opacity=".7"/></svg>
+        Connetti
+      </button>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="sidebar-search">
+      <span class="s-icon">🔍</span>
+      <input type="text" id="sidebar-search" placeholder="Cerca condominio..." oninput="renderSidebar()">
+    </div>
+    <!-- SORT -->
+    <div class="sidebar-sort">
+      <span class="sort-lbl">Ordina</span>
+      <button class="sort-btn active" id="sort-data" onclick="setSort('data')" title="Data assemblea">📅 Data</button>
+      <button class="sort-btn" id="sort-nome" onclick="setSort('nome')" title="Nome condominio">🔤 Nome</button>
+      <button class="sort-btn" id="sort-imp" onclick="setSort('imp')" title="Ordine di importazione">📥 Import</button>
+    </div>
+    <div class="sidebar-count" id="sidebar-count"></div>
+    <div class="verbale-list" id="verbale-list">
+      <div class="sidebar-empty" id="sidebar-empty">Nessun verbale.<br>Clicca "Aggiungi verbale" per iniziare.</div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button class="btn btn-danger" style="width:100%;justify-content:center;font-size:11px;" onclick="persistClear()">🗑 Cancella archivio</button>
+    </div>
+  </aside>
+
+  <main class="stage">
+
+    <div class="screen active" id="screen-welcome">
+      <div class="welcome-wrap">
+        <div class="welcome-icon">⚖️</div>
+        <div class="welcome-title">Lomasto Verbale Suite</div>
+        <div class="welcome-sub">Sistema di analisi e gestione verbali assembleari condominiali. Carica il verbale su Claude per l'analisi AI, importa il JSON qui per visualizzare il report, poi salva il file aggiornato per preservare tutti i dati alla riapertura.</div>
+        <div class="steps">
+          <div class="step-card"><div class="step-n">1</div><h4>Analizza su Claude</h4><p>Carica il PDF su Claude.ai e chiedi il JSON strutturato</p></div>
+          <div class="step-card"><div class="step-n">2</div><h4>Importa JSON</h4><p>Incolla il JSON nell'app per generare il report</p></div>
+          <div class="step-card"><div class="step-n">3</div><h4>Modifica</h4><p>Aggiorna stato adempimenti, filtra, stampa</p></div>
+          <div class="step-card"><div class="step-n">4</div><h4>Salva file</h4><p>💾 Salva il file HTML con tutti i dati incorporati</p></div>
+        </div>
+        <button class="btn btn-gold" style="font-size:14px;padding:13px 28px;" onclick="openImport()">＋ Aggiungi primo verbale</button>
+      </div>
+    </div>
+
+    <div class="screen" id="screen-report">
+      <div class="report-screen">
+        <div class="report-topbar">
+          <div>
+            <div class="report-crumb">Verbale Analizzato</div>
+            <div class="report-title" id="rpt-title">—</div>
+            <div class="report-sub" id="rpt-sub">—</div>
+          </div>
+          <div class="report-actions">
+            <button class="btn btn-outline" onclick="window.print()">🖨 Stampa</button>
+            <button class="btn btn-sky" onclick="exportJSON()">📤 Esporta JSON</button>
+            <button class="btn btn-emerald" onclick="downloadXLSX()">⬇ Download XLSX</button>
+          </div>
+        </div>
+
+        <div class="report-tabs">
+          <button class="rtab active" onclick="switchTab('anagrafica',this)">🏢 Anagrafica</button>
+          <button class="rtab" onclick="switchTab('partecipanti',this)">👥 Partecipanti</button>
+          <button class="rtab" onclick="switchTab('millesimi',this)">⚖ Millesimi</button>
+          <button class="rtab" onclick="switchTab('odg',this)">📌 Ordine del Giorno</button>
+          <button class="rtab" onclick="switchTab('relazione',this)">📝 Relazione</button>
+          <button class="rtab" onclick="switchTab('adempimenti',this)">✅ Adempimenti</button>
+          <button class="rtab" onclick="switchTab('verbale',this)">📄 Verbale Originale</button>
+        </div>
+
+        <div class="rtab-panel active" id="tp-anagrafica">
+          <div class="stat-grid" id="stat-grid"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="panel-card"><div class="panel-head"><h3>📍 Dati Identificativi</h3></div><div class="tbl-wrap"><table><tbody id="tbl-ana"></tbody></table></div></div>
+            <div style="display:grid;gap:14px;">
+              <div class="panel-card"><div class="panel-head"><h3>🧑‍⚖️ Organi Assembleari</h3></div><div class="tbl-wrap"><table><tbody id="tbl-org"></tbody></table></div></div>
+              <div class="panel-card"><div class="panel-head"><h3>🏛️ Amministratore</h3></div><div class="tbl-wrap"><table><tbody id="tbl-adm"></tbody></table></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rtab-panel" id="tp-partecipanti">
+          <div class="panel-card">
+            <div class="panel-head"><h3>Elenco Partecipanti</h3><div style="display:flex;gap:8px;"><span class="badge bg">● Presente</span><span class="badge bgold">⇢ Delega</span></div></div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>N°</th><th>Nominativo</th><th>Modalità</th><th>Delegato / Ruolo</th><th>Millesimi</th><th>Note</th></tr></thead>
+              <tbody id="tbl-part"></tbody>
+              <tfoot><tr><td colspan="4">TOTALE MILLESIMI RAPPRESENTATI</td><td id="mill-tot">—</td><td></td></tr></tfoot>
+            </table></div>
+          </div>
+        </div>
+
+        <div class="rtab-panel" id="tp-millesimi">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">
+            <div class="panel-card"><div class="panel-head"><h3>▶ Presenti di Persona</h3></div><div class="tbl-wrap"><table><thead><tr><th>Condòmino</th><th>Propri</th><th>In Delega</th><th>Totale</th><th>%</th></tr></thead><tbody id="tbl-pres-mill"></tbody></table></div></div>
+            <div class="panel-card"><div class="panel-head"><h3>⇢ In Delega</h3></div><div class="tbl-wrap"><table><thead><tr><th>Condòmino</th><th>Mill.</th><th>Delegato a</th><th>%</th></tr></thead><tbody id="tbl-del-mill"></tbody></table></div></div>
+          </div>
+          <div class="panel-card"><div class="panel-head"><h3>📊 Distribuzione Millesimi</h3></div><div style="padding:20px 24px;" id="chart-mill"></div></div>
+        </div>
+
+        <div class="rtab-panel" id="tp-odg"><div id="odg-cards"></div></div>
+        <div class="rtab-panel" id="tp-relazione"><div id="rel-blocks"></div></div>
+
+        <div class="rtab-panel" id="tp-adempimenti">
+          <div class="fbar">
+            <label>Urgenza:</label>
+            <select class="fsel" id="f-u" onchange="renderAdemp()"><option value="">Tutte</option><option value="urgente">🔴 Urgente</option><option value="alta">🟠 Alta</option><option value="media">🟡 Media</option><option value="bassa">🟢 Bassa</option></select>
+            <label>Area:</label>
+            <select class="fsel" id="f-a" onchange="renderAdemp()"><option value="">Tutte</option><option>Amministrazione</option><option>Contabilità</option><option>Comunicazione</option><option>Legale</option><option>Manutenzione</option></select>
+            <label>Stato:</label>
+            <select class="fsel" id="f-s" onchange="renderAdemp()"><option value="">Tutti</option><option value="da-fare">⬜ Da fare</option><option value="in-corso">🔄 In corso</option><option value="completato">✅ Completato</option><option value="annullato">❌ Annullato</option></select>
+            <button class="btn btn-outline" style="margin-left:auto;" onclick="['f-u','f-a','f-s'].forEach(id=>document.getElementById(id).value='');renderAdemp()">↺ Reset</button>
+          </div>
+          <div class="panel-card">
+            <div class="panel-head"><h3>Adempimenti Post-Assembleari</h3>
+              <span style="font-size:10px;color:rgba(255,255,255,.4);font-family:'DM Mono',monospace;">le modifiche vengono autosalvate</span>
+            </div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>N°</th><th>Attività</th><th>Area</th><th>Urgenza</th><th>Responsabile</th><th>Scadenza</th><th>Stato</th></tr></thead>
+              <tbody id="tbl-ademp"></tbody>
+            </table></div>
+          </div>
+          <p style="font-size:11px;color:var(--fog);font-style:italic;margin-top:8px;">ℹ Le modifiche a Urgenza e Stato vengono salvate automaticamente. Clicca <strong>💾 Salva file</strong> per renderle permanenti alla prossima apertura.</p>
+        </div>
+
+        <div class="rtab-panel" id="tp-verbale">
+          <div class="verbale-doc" id="verbale-doc-wrap">
+            <div class="verbale-doc-empty"><div class="empty-icon">📄</div>Nessun testo verbale disponibile.<br>Assicurati che il JSON generato da Claude includa il campo <code style="font-family:'DM Mono',monospace;font-size:12px;background:var(--paper);padding:2px 6px;border-radius:3px;">testo_verbale</code>.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="overlay" id="overlay-import">
+  <div class="modal">
+    <div class="modal-title">Importa Verbale Analizzato</div>
+    <div class="modal-sub">Carica uno o più file JSON oppure incolla il testo direttamente.</div>
+
+    <!-- TABS -->
+    <div class="import-tabs">
+      <button class="import-tab active" id="itab-file" onclick="switchImportTab('file')">📂 Carica file JSON</button>
+      <button class="import-tab" id="itab-text" onclick="switchImportTab('text')">📋 Incolla testo</button>
+    </div>
+
+    <!-- FILE TAB -->
+    <div id="ipanel-file">
+      <!-- Hidden inputs -->
+      <input type="file" id="file-input" accept=".json" multiple onchange="handleFiles(this.files)" style="display:none;">
+      <input type="file" id="folder-input" webkitdirectory mozdirectory onchange="handleFiles(this.files)" style="display:none;">
+
+      <!-- Drop area -->
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-icon">📂</div>
+        <div class="drop-text">
+          <strong>Trascina qui i file .json</strong>
+          (anche da Esplora File — seleziona tutti con Ctrl+A e trascina)
+        </div>
+        <div class="drop-fname" id="drop-fname"></div>
+        <div class="drop-multi-info" id="drop-multi-info"></div>
+      </div>
+
+      <!-- Buttons row -->
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="document.getElementById('file-input').click()">
+          📄 Seleziona file .json
+        </button>
+        <button class="btn btn-outline" style="flex:1;justify-content:center;" onclick="document.getElementById('folder-input').click()">
+          📁 Seleziona cartella
+        </button>
+      </div>
+      <p style="font-size:10px;color:var(--fog);margin-top:6px;text-align:center;font-family:'DM Mono',monospace;">
+        💡 <strong>Consiglio:</strong> usa <em>Seleziona cartella</em> per caricare tutti i file in una volta
+      </p>
+
+      <!-- DIVIDER -->
+      <div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;">
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+        <span style="font-size:10px;color:var(--fog);font-family:'DM Mono',monospace;white-space:nowrap;">oppure carica lo ZIP</span>
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+      </div>
+
+      <!-- ZIP DROP ZONE -->
+      <input type="file" id="zip-input" accept=".zip" style="display:none;" onchange="handleZip(this.files[0])">
+      <div class="zip-drop-zone" id="zip-drop-zone" onclick="document.getElementById('zip-input').click()">
+        <div class="drop-icon">🗜️</div>
+        <div class="drop-text">
+          <strong>Carica il file ZIP con tutti i JSON</strong>
+          Clicca qui o trascina il file .zip
+        </div>
+        <div class="drop-fname" id="zip-fname" style="color:var(--emerald);font-family:'DM Mono',monospace;font-size:11px;margin-top:5px;"></div>
+      </div>
+
+      <!-- PROGRESS BAR -->
+      <div class="import-progress" id="import-progress">
+        <div class="import-progress-bar-wrap">
+          <div class="import-progress-bar" id="import-progress-bar" style="width:0%"></div>
+        </div>
+        <div class="import-progress-label" id="import-progress-label">Caricamento...</div>
+      </div>
+    </div>
+
+    <!-- TEXT TAB -->
+    <div id="ipanel-text" style="display:none;">
+      <div class="howto-box">
+        <strong>📋 Come ottenere il JSON da Claude</strong>
+        <ol>
+          <li>Vai su <strong>claude.ai</strong> → nuova chat</li>
+          <li>Carica il PDF o incolla il testo del verbale</li>
+          <li>Espandi "Prompt da copiare" qui sotto, copialo e invialo a Claude</li>
+          <li>Copia il JSON dalla risposta e incollalo nel campo sottostante</li>
+        </ol>
+      </div>
+      <details style="margin-bottom:13px;">
+        <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--sky);padding:5px 0;">📄 Prompt da copiare su Claude</summary>
+        <div class="json-preview" id="prompt-box" onclick="this.focus();document.execCommand('selectAll')">Analizza il verbale di assemblea condominiale allegato ed estrai tutte le informazioni. Restituisci SOLO un oggetto JSON valido (nessun testo prima o dopo, nessun markdown), con questa struttura esatta:
+
+{"titolo":"denominazione condominio","testo_verbale":"trascrizione integrale o fedele del testo del verbale, inclusi tutti i paragrafi, le delibere e le firme","anagrafica":{"denominazione":"","indirizzo":"","luogo_assemblea":"","data_assemblea":"","ora_inizio":"","ora_chiusura":"","tipo_convocazione":"","rif_normativo":"","totale_convocati":0,"totale_presenti_delegati":0,"millesimi_totali":1000,"millesimi_rappresentati":0,"quorum_raggiunto":true},"organi":{"presidente":"","segretario":"","firma_presidente":"","firma_segretario":""},"amministratore":{"nominativo":"","compenso":"","esito":""},"partecipanti":[{"n":1,"nominativo":"","modalita":"PRESENTE","delegato":"","millesimi":0,"note":""}],"odg":[{"n":1,"titolo":"","tipo":"","delibera":"","esito":"","esito_badge":"approvato","importo":"","rif_normativo":"","note":"","relazione":""}],"adempimenti":[{"n":1,"attivita":"","area":"Amministrazione","urgenza":"urgente","responsabile":"","scadenza":"","stato":"da-fare"}]}
+
+REGOLE: modalita="PRESENTE" o "DELEGA"; esito_badge="approvato"/"respinto"/"rinviato"/"parziale"; urgenza="urgente"/"alta"/"media"/"bassa"; stato="da-fare"; genera adempimenti completi; relazione=2-4 frasi per punto OdG; testo_verbale=trascrizione fedele e completa del documento originale. Solo JSON puro.</div>
+        <button class="btn btn-outline" style="margin-top:5px;font-size:11px;" onclick="copyPrompt()">📋 Copia prompt</button>
+      </details>
+      <div class="form-field">
+        <label>JSON restituito da Claude</label>
+        <textarea id="json-input" rows="7" placeholder='{"titolo": "Condominio ...", "anagrafica": { ... }}' oninput="validateJSON()" style="font-family:'DM Mono',monospace;font-size:11px;resize:vertical;"></textarea>
+        <div id="json-status"></div>
+      </div>
+    </div>
+
+    <!-- NOME CUSTOM + DATA (comuni a entrambi i tab) -->
+
+    <details style="margin-bottom:14px;">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--sky);padding:6px 0;">📄 Prompt da copiare su Claude</summary>
+      <div class="json-preview" id="prompt-box" onclick="this.focus();document.execCommand('selectAll')">Analizza il verbale di assemblea condominiale allegato ed estrai tutte le informazioni. Restituisci SOLO un oggetto JSON valido (nessun testo prima o dopo, nessun markdown), con questa struttura esatta:
+
+{"titolo":"denominazione condominio","testo_verbale":"trascrizione integrale o fedele del testo del verbale, inclusi tutti i paragrafi, le delibere e le firme","anagrafica":{"denominazione":"","indirizzo":"","luogo_assemblea":"","data_assemblea":"","ora_inizio":"","ora_chiusura":"","tipo_convocazione":"","rif_normativo":"","totale_convocati":0,"totale_presenti_delegati":0,"millesimi_totali":1000,"millesimi_rappresentati":0,"quorum_raggiunto":true},"organi":{"presidente":"","segretario":"","firma_presidente":"","firma_segretario":""},"amministratore":{"nominativo":"","compenso":"","esito":""},"partecipanti":[{"n":1,"nominativo":"","modalita":"PRESENTE","delegato":"","millesimi":0,"note":""}],"odg":[{"n":1,"titolo":"","tipo":"","delibera":"","esito":"","esito_badge":"approvato","importo":"","rif_normativo":"","note":"","relazione":""}],"adempimenti":[{"n":1,"attivita":"","area":"Amministrazione","urgenza":"urgente","responsabile":"","scadenza":"","stato":"da-fare"}]}
+
+REGOLE: modalita="PRESENTE" o "DELEGA"; esito_badge="approvato"/"respinto"/"rinviato"/"parziale"; urgenza="urgente"/"alta"/"media"/"bassa"; stato="da-fare"; genera adempimenti completi; relazione=2-4 frasi per punto OdG; testo_verbale=trascrizione fedele e completa del documento originale. Solo JSON puro.</div>
+      <button class="btn btn-outline" style="margin-top:6px;font-size:11px;" onclick="copyPrompt()">📋 Copia prompt</button>
+    </details>
+
+    <div class="modal-row">
+      <div class="form-field" style="margin-bottom:0;">
+        <label>Nome personalizzato (opzionale)</label>
+        <input type="text" id="inp-nome" placeholder="sovrascrive il nome nel JSON">
+      </div>
+      <div class="form-field" style="margin-bottom:0;">
+        <label>Data importazione</label>
+        <input type="text" id="inp-loaded" readonly style="background:var(--paper);color:var(--fog);">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeImport()">Annulla</button>
+      <button class="btn btn-gold" id="btn-import" onclick="doImport()" disabled>Importa Verbale</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let verbali = [];
+let current = null;
+const LS_KEY = 'verbalesuite_v1';
+
+// ══════════════════════════════════════════════════════
+// PERSISTENCE
+// ══════════════════════════════════════════════════════
+function persistSave() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(verbali));
+    updateSaveBadge('saved');
+  } catch(e) { console.warn('localStorage:', e); }
+}
+
+function persistLoad() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (Array.isArray(saved) && saved.length) {
+      verbali = saved;
+      return true;
+    }
+  } catch(e) { console.warn('Errore caricamento:', e); }
+  return false;
+}
+
+function persistClear() {
+  if (!confirm('Cancellare tutti i dati salvati e l\'archivio corrente?\nQuesta operazione non è reversibile.')) return;
+  localStorage.removeItem(LS_KEY);
+  verbali = []; current = null;
+  showScreen('welcome');
+  renderSidebar();
+  updateSaveBadge('empty');
+  showToast('Archivio cancellato', 'info');
+}
+
+function updateSaveBadge(state) {
+  const b = document.getElementById('save-badge');
+  const i = document.getElementById('save-info');
+  if (state === 'saved') {
+    b.className = 'save-badge saved';
+    b.textContent = '● salvato';
+    if(i) i.textContent = 'Salvato — clicca per aggiornare il file';
+  } else if (state === 'unsaved') {
+    b.className = 'save-badge unsaved';
+    b.textContent = '● modifiche non salvate';
+    if(i) i.textContent = '⚠ Salva il file per preservare le modifiche';
+  } else {
+    b.className = 'save-badge';
+    b.textContent = '● nessun dato';
+    if(i) i.textContent = 'Salva per preservare i dati alla riapertura';
+  }
+}
+
+function markUnsaved() {
+  updateSaveBadge('unsaved');
+  persistSave(); // auto-save to localStorage
+  if (driveToken) driveSaveData(); // auto-sync su Drive se connesso
+}
+
+// ══════════════════════════════════════════════════════
+// GOOGLE DRIVE SYNC
+// ══════════════════════════════════════════════════════
+// ⚙️ CONFIGURAZIONE — inserisci le tue credenziali Google Cloud
+const DRIVE_CLIENT_ID = '1030451003260-cbefbffcbkjgg2qtmc5516saflgtqu0g.apps.googleusercontent.com';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
+const DRIVE_FILENAME = 'verbalesuite_data.json';
+
+let driveToken = null;        // access token corrente
+let driveFileId = null;       // ID del file su Drive
+let driveFolderId = null;     // ID della cartella selezionata
+let driveFolderName = null;   // Nome leggibile della cartella
+let driveConfigured = DRIVE_CLIENT_ID !== '__YOUR_CLIENT_ID__';
+
+// Imposta UI Drive
+function driveSetUI(state, msg) {
+  const dot = document.getElementById('drive-dot');
+  const status = document.getElementById('drive-status');
+  const btn = document.getElementById('drive-btn');
+  const bar = document.getElementById('drive-bar');
+  dot.className = 'drive-dot ' + state;
+  status.textContent = msg;
+  if (state === 'connected') {
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11L4 22H20L12 11Z" fill="#0F9D58"/><path d="M20 22L14 11H22L20 22Z" fill="#4285F4" opacity=".5"/><path d="M8 2L2 12L6 19L12 9L8 2Z" fill="#FBBC05"/><path d="M16 2H8L12 9L16 2Z" fill="#EA4335" opacity=".7"/></svg> Disconnetti`;
+    btn.onclick = driveDisconnect;
+    // Mostra pulsante cambia cartella se non già presente
+    if (!document.getElementById('drive-change-btn')) {
+      const changeBtn = document.createElement('button');
+      changeBtn.id = 'drive-change-btn';
+      changeBtn.className = 'btn-drive';
+      changeBtn.style.cssText = 'font-size:10px;padding:4px 7px;';
+      changeBtn.title = 'Cambia cartella Drive';
+      changeBtn.innerHTML = '📁';
+      changeBtn.onclick = driveChangeFolder;
+      bar.appendChild(changeBtn);
+    }
+  } else if (state === 'disconnected' || state === 'error') {
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11L4 22H20L12 11Z" fill="#0F9D58"/><path d="M20 22L14 11H22L20 22Z" fill="#4285F4" opacity=".5"/><path d="M8 2L2 12L6 19L12 9L8 2Z" fill="#FBBC05"/><path d="M16 2H8L12 9L16 2Z" fill="#EA4335" opacity=".7"/></svg> Connetti`;
+    btn.onclick = driveConnect;
+    const cb = document.getElementById('drive-change-btn');
+    if (cb) cb.remove();
+  } else {
+    btn.innerHTML = `⏳`;
+    btn.onclick = null;
+  }
+}
+
+// Connetti a Google Drive
+function driveConnect() {
+  if (!driveConfigured) {
+    showDriveSetupModal();
+    return;
+  }
+  driveSetUI('syncing', 'Autenticazione...');
+  const clientId = window._driveClientIdRuntime || DRIVE_CLIENT_ID;
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if (resp.error) {
+        driveSetUI('error', 'Errore autenticazione');
+        showToast('Errore Google: ' + resp.error, 'error');
+        return;
+      }
+      driveToken = resp.access_token;
+      localStorage.setItem('drive_token', driveToken);
+
+      // Se cartella già salvata, carica direttamente
+      const savedFolder = localStorage.getItem('drive_folder_id');
+      const savedFolderName = localStorage.getItem('drive_folder_name');
+      if (savedFolder) {
+        driveFolderId = savedFolder;
+        driveFolderName = savedFolderName || 'Cartella Drive';
+        driveSetUI('syncing', 'Connessione riuscita — carico dati...');
+        await driveLoadData();
+      } else {
+        // Prima volta: mostra Picker per scegliere cartella
+        driveSetUI('syncing', 'Seleziona una cartella Drive...');
+        driveOpenFolderPicker();
+      }
+    }
+  });
+  client.requestAccessToken();
+}
+
+// Apre Google Picker per selezionare una cartella
+function driveOpenFolderPicker() {
+  const clientId = window._driveClientIdRuntime || DRIVE_CLIENT_ID;
+
+  // Carica gapi se non ancora caricato
+  if (typeof gapi === 'undefined') {
+    showToast('Libreria Google non ancora caricata — riprova tra un secondo', 'error');
+    driveSetUI('disconnected', 'Drive configurato — clicca Connetti');
+    return;
+  }
+
+  gapi.load('picker', () => {
+    const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+      .setSelectFolderEnabled(true)
+      .setMimeTypes('application/vnd.google-apps.folder');
+
+    const picker = new google.picker.PickerBuilder()
+      .setTitle('Seleziona la cartella per i verbali')
+      .addView(view)
+      .setOAuthToken(driveToken)
+      .setDeveloperKey('') // opzionale se hai API Key
+      .setCallback(drivePickerCallback)
+      .build();
+
+    picker.setVisible(true);
+  });
+}
+
+// Callback selezione cartella dal Picker
+async function drivePickerCallback(data) {
+  if (data.action === google.picker.Action.PICKED) {
+    const folder = data.docs[0];
+    driveFolderId = folder.id;
+    driveFolderName = folder.name;
+    localStorage.setItem('drive_folder_id', driveFolderId);
+    localStorage.setItem('drive_folder_name', driveFolderName);
+    // Reset file ID — potrebbe essere in cartella diversa
+    driveFileId = null;
+    localStorage.removeItem('drive_file_id');
+    driveSetUI('syncing', `Cartella "${driveFolderName}" selezionata — carico dati...`);
+    showToast(`📁 Cartella "${driveFolderName}" selezionata`, 'success');
+    await driveLoadData();
+  } else if (data.action === google.picker.Action.CANCEL) {
+    driveSetUI('disconnected', 'Selezione cartella annullata');
+    showToast('Selezione cartella annullata', 'info');
+  }
+}
+
+// Cambia cartella Drive
+function driveChangeFolder() {
+  if (!driveToken) { showToast('Connettiti prima a Google Drive', 'error'); return; }
+  driveOpenFolderPicker();
+}
+
+function driveDisconnect() {
+  if (!confirm('Disconnettere Google Drive?\nI dati rimarranno nel localStorage locale.')) return;
+  if (driveToken) google.accounts.oauth2.revoke(driveToken);
+  driveToken = null;
+  driveFileId = null;
+  driveFolderId = null;
+  driveFolderName = null;
+  localStorage.removeItem('drive_token');
+  localStorage.removeItem('drive_file_id');
+  localStorage.removeItem('drive_folder_id');
+  localStorage.removeItem('drive_folder_name');
+  driveSetUI('disconnected', 'Drive non connesso');
+  showToast('Drive disconnesso', 'info');
+}
+
+// Cerca il file dati su Drive (nella cartella selezionata)
+async function driveFindFile() {
+  const folderClause = driveFolderId ? ` and '${driveFolderId}' in parents` : '';
+  const q = encodeURIComponent(`name='${DRIVE_FILENAME}' and trashed=false${folderClause}`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)`, {
+    headers: { Authorization: 'Bearer ' + driveToken }
+  });
+  const data = await res.json();
+  if (data.files && data.files.length > 0) {
+    driveFileId = data.files[0].id;
+    localStorage.setItem('drive_file_id', driveFileId);
+    return driveFileId;
+  }
+  return null;
+}
+
+// Carica dati da Drive
+async function driveLoadData() {
+  try {
+    const folderLabel = driveFolderName ? `"${driveFolderName}"` : 'Drive';
+    driveSetUI('syncing', `Ricerca file in ${folderLabel}...`);
+    const fid = await driveFindFile();
+    if (!fid) {
+      driveSetUI('connected', `Connesso · ${folderLabel} · nessun dato`);
+      showToast(`Drive connesso in ${folderLabel}. Nessun archivio trovato — sarà creato al primo salvataggio.`, 'info');
+      return;
+    }
+    driveSetUI('syncing', 'Scarico dati...');
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + driveToken }
+    });
+    const data = await res.json();
+    if (Array.isArray(data) && data.length) {
+      const driveIds = new Set(data.map(v => v.id));
+      const localOnly = verbali.filter(v => !driveIds.has(v.id));
+      verbali = [...data, ...localOnly];
+      persistSave();
+      renderSidebar();
+      if (verbali.length) loadReport(verbali[verbali.length - 1]);
+      driveSetUI('connected', `Connesso · ${folderLabel} · ${verbali.length} verbali`);
+      showToast(`☁️ ${data.length} verbali caricati da ${folderLabel}`, 'success');
+    } else {
+      driveSetUI('connected', `Connesso · ${folderLabel} · archivio vuoto`);
+    }
+  } catch(e) {
+    driveSetUI('error', 'Errore caricamento Drive');
+    showToast('Errore Drive: ' + e.message, 'error');
+    console.error('driveLoadData:', e);
+  }
+}
+
+// Salva dati su Drive (crea o aggiorna il file)
+async function driveSaveData() {
+  if (!driveToken) return false;
+  try {
+    driveSetUI('syncing', 'Salvataggio su Drive...');
+    const content = JSON.stringify(verbali, null, 2);
+    const blob = new Blob([content], { type: 'application/json' });
+
+    let res;
+    if (driveFileId) {
+      // PATCH — aggiorna file esistente
+      res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + driveToken, 'Content-Type': 'application/json' },
+        body: blob
+      });
+    } else {
+      // POST — crea nuovo file nella cartella selezionata
+      const metaObj = { name: DRIVE_FILENAME, mimeType: 'application/json' };
+      if (driveFolderId) metaObj.parents = [driveFolderId];
+      const meta = JSON.stringify(metaObj);
+      const form = new FormData();
+      form.append('metadata', new Blob([meta], { type: 'application/json' }));
+      form.append('file', blob);
+      res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + driveToken },
+        body: form
+      });
+      const created = await res.clone().json();
+      if (created.id) {
+        driveFileId = created.id;
+        localStorage.setItem('drive_file_id', driveFileId);
+      }
+    }
+
+    if (res.ok) {
+      const now = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      driveSetUI('connected', `Connesso · salvato alle ${now}`);
+      return true;
+    } else {
+      const err = await res.json();
+      // Token scaduto → richiedi nuovo
+      if (res.status === 401) {
+        driveToken = null;
+        driveSetUI('disconnected', 'Sessione scaduta — riconnetti');
+        showToast('Sessione Google scaduta. Clicca "Connetti" per rinnovarla.', 'error');
+      } else {
+        driveSetUI('error', 'Errore salvataggio Drive');
+        showToast('Errore Drive: ' + (err.error?.message || res.status), 'error');
+      }
+      return false;
+    }
+  } catch(e) {
+    driveSetUI('error', 'Errore Drive');
+    showToast('Errore Drive: ' + e.message, 'error');
+    return false;
+  }
+}
+
+// Modal di configurazione (se CLIENT_ID non è ancora impostato)
+function showDriveSetupModal() {
+  const html = `
+  <div style="position:fixed;inset:0;z-index:300;background:rgba(15,25,35,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;" id="drive-setup-overlay">
+    <div style="background:#fff;border-radius:14px;padding:34px;width:min(540px,94vw);box-shadow:0 8px 40px rgba(15,25,35,.18);">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;margin-bottom:6px;">Configura Google Drive</div>
+      <div style="font-size:13px;color:var(--fog);margin-bottom:20px;line-height:1.6;">Inserisci il tuo <strong>Client ID</strong> ottenuto da Google Cloud Console. Questa operazione si fa una sola volta.</div>
+      <div style="background:var(--sky-bg);border:1px solid #b8d4ef;border-radius:8px;padding:14px 16px;margin-bottom:18px;font-size:12px;color:var(--sky);line-height:1.9;">
+        <strong style="display:block;font-size:13px;color:var(--ink2);margin-bottom:6px;">📋 Come ottenere il Client ID:</strong>
+        <ol style="padding-left:16px;">
+          <li>Vai su <strong>console.cloud.google.com</strong></li>
+          <li>Crea un progetto (es. "VerbaleS Drive")</li>
+          <li>Abilita <strong>Google Drive API</strong></li>
+          <li>Vai in <strong>API & Services → Credentials</strong></li>
+          <li>Crea credenziali → <strong>OAuth 2.0 Client ID</strong></li>
+          <li>Tipo applicazione: <strong>Web application</strong></li>
+          <li>Aggiungi in "Origini JS autorizzate": <code style="background:rgba(30,77,140,.1);padding:1px 6px;border-radius:3px;font-family:'DM Mono',monospace;font-size:10px;">file://</code> e l'URL dove apri il file</li>
+          <li>Copia il <strong>Client ID</strong> e incollalo qui sotto</li>
+        </ol>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:18px;">
+        <label style="font-size:11px;font-weight:600;color:var(--slate);letter-spacing:.04em;">CLIENT ID</label>
+        <input type="text" id="drive-client-id-input" placeholder="123456789-abc.apps.googleusercontent.com"
+          style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;font-size:12px;font-family:'DM Mono',monospace;color:var(--ink);">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn btn-outline" onclick="document.getElementById('drive-setup-overlay').remove()">Annulla</button>
+        <button class="btn btn-gold" onclick="driveApplyClientId()">Salva e connetti</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function driveApplyClientId() {
+  const val = document.getElementById('drive-client-id-input').value.trim();
+  if (!val || !val.includes('.apps.googleusercontent.com')) {
+    showToast('Client ID non valido', 'error'); return;
+  }
+  // Salva in localStorage per riutilizzo
+  localStorage.setItem('drive_client_id', val);
+  document.getElementById('drive-setup-overlay').remove();
+  showToast('Client ID salvato ✓ — riapri il file dopo averlo salvato con il nuovo ID incorporato.', 'success');
+  // Aggiorna runtime
+  window._driveClientIdRuntime = val;
+  driveConfigured = true;
+  driveConnect();
+}
+
+// ══════════════════════════════════════════════════════
+// Salva una versione del file HTML con i dati baked-in
+function saveHTMLFile() {
+  if (!verbali.length) { showToast('Nessun dato da salvare', 'error'); return; }
+  
+  // Ottieni il sorgente della pagina corrente
+  const doctype = '<!DOCTYPE html>\n';
+  const htmlContent = document.documentElement.outerHTML;
+  
+  // Cerca il marcatore e inietta i dati
+  const MARKER = '/* __BAKED_DATA__ */';
+  const injection = `/* __BAKED_DATA__ */
+  (function(){
+    const _baked = ${JSON.stringify(verbali)};
+    if(_baked && _baked.length && !verbali.length){
+      verbali = _baked;
+      document.addEventListener('DOMContentLoaded', function(){
+        if(verbali.length){ renderSidebar(); loadReport(verbali[verbali.length-1]); updateSaveBadge('saved'); }
+      });
+    }
+  })();`;
+
+  let newHTML;
+  if (htmlContent.includes(MARKER)) {
+    newHTML = doctype + htmlContent.replace(MARKER, injection);
+  } else {
+    // Prima esecuzione: inserisci il marker prima della chiusura <\/script>
+    newHTML = doctype + htmlContent.replace(
+      '<\/script>\n</body>',
+      injection + '\n<\/script>\n</body>'
+    );
+  }
+
+  const blob = new Blob([newHTML], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'LomastoverbaleSuite.html';
+  a.click();
+  URL.revokeObjectURL(url);
+  updateSaveBadge('saved');
+  showToast('✅ Scaricato LomastoverbaleSuite.html — sostituisci il file precedente con questo', 'success');
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════════════
+// ── IMPORT TAB SWITCH ────────────────────────────────
+function switchImportTab(tab){
+  document.getElementById('itab-file').classList.toggle('active', tab==='file');
+  document.getElementById('itab-text').classList.toggle('active', tab==='text');
+  document.getElementById('ipanel-file').style.display = tab==='file' ? '' : 'none';
+  document.getElementById('ipanel-text').style.display = tab==='text' ? '' : 'none';
+  // reset button state based on tab
+  if(tab==='file') updateFileBtn();
+  else validateJSON();
+}
+
+// ── FILE DROP + MULTI-IMPORT ─────────────────────────
+let pendingFiles = []; // array of parsed JSON objects ready to import
+
+function handleFiles(fileList){
+  const files = Array.from(fileList).filter(f=>f.name.endsWith('.json'));
+  if(!files.length){ showToast('Nessun file .json trovato nella selezione','error'); return; }
+
+  // Accumulate: don't reset if already have files (allow multiple calls)
+  const fname = document.getElementById('drop-fname');
+  const minfo = document.getElementById('drop-multi-info');
+  fname.textContent = '⏳ Caricamento di ' + files.length + ' file...';
+  minfo.textContent = '';
+
+  let loaded = 0;
+  let errors = 0;
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const d = JSON.parse(e.target.result);
+        if(!d.anagrafica && !d.titolo) throw new Error('struttura non valida');
+        // Avoid duplicates by filename+titolo
+        const dup = pendingFiles.find(p => p.filename === file.name);
+        if(!dup) pendingFiles.push({ data: d, filename: file.name });
+      } catch(err) {
+        errors++;
+        console.warn('Errore in', file.name, ':', err.message);
+      }
+      loaded++;
+      if(loaded === files.length){
+        const ok = pendingFiles.length;
+        if(ok === 0){
+          fname.textContent = '✖ Nessun file valido';
+        } else if(ok === 1){
+          fname.textContent = '✔ ' + pendingFiles[0].filename;
+          minfo.textContent = '';
+        } else {
+          fname.textContent = '✔ ' + ok + ' file pronti' + (errors > 0 ? ' (' + errors + ' ignorati)' : '');
+          // Show first 5 names then ...
+          const names = pendingFiles.slice(0,5).map(p=>p.filename);
+          minfo.textContent = names.join(', ') + (ok > 5 ? ' ... +' + (ok-5) + ' altri' : '');
+        }
+        updateFileBtn();
+      }
+    };
+    reader.onerror = () => {
+      errors++; loaded++;
+      console.warn('Impossibile leggere', file.name);
+    };
+    reader.readAsText(file, 'utf-8');
+  });
+}
+
+function updateFileBtn(){
+  document.getElementById('btn-import').disabled = pendingFiles.length === 0;
+}
+
+// ── ZIP IMPORT ────────────────────────────────────────
+async function handleZip(file){
+  if(!file || !file.name.endsWith('.zip')){
+    showToast('Seleziona un file .zip','error'); return;
+  }
+  const fname = document.getElementById('zip-fname');
+  const prog  = document.getElementById('import-progress');
+  const bar   = document.getElementById('import-progress-bar');
+  const lbl   = document.getElementById('import-progress-label');
+  fname.textContent = '⏳ Analisi ' + file.name + '...';
+  prog.style.display = 'block';
+  bar.style.width = '5%';
+  lbl.textContent = 'Apertura ZIP...';
+  document.getElementById('btn-import').disabled = true;
+
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const jsonFiles = Object.keys(zip.files).filter(n => n.endsWith('.json') && !zip.files[n].dir);
+    if(!jsonFiles.length){ showToast('Nessun file .json trovato nello ZIP','error'); prog.style.display='none'; return; }
+
+    // Reset pending
+    pendingFiles = [];
+    let done = 0;
+    const total = jsonFiles.length;
+    lbl.textContent = '0 / ' + total + ' file letti...';
+
+    for(const name of jsonFiles){
+      const content = await zip.files[name].async('string');
+      try {
+        const d = JSON.parse(content);
+        if(d.anagrafica || d.titolo){
+          const shortName = name.split('/').pop(); // strip subdirs
+          const dup = pendingFiles.find(p => p.filename === shortName);
+          if(!dup) pendingFiles.push({ data: d, filename: shortName });
+        }
+      } catch(e){ /* skip invalid */ }
+      done++;
+      const pct = Math.round(done/total*100);
+      bar.style.width = pct + '%';
+      lbl.textContent = done + ' / ' + total + ' file letti...';
+    }
+
+    const ok = pendingFiles.length;
+    bar.style.width = '100%';
+    lbl.textContent = '✔ ' + ok + ' verbali pronti su ' + total + ' file trovati';
+    fname.textContent = '✔ ' + file.name + ' — ' + ok + ' verbali validi';
+    document.getElementById('btn-import').disabled = ok === 0;
+
+  } catch(e) {
+    showToast('Errore ZIP: ' + e.message, 'error');
+    prog.style.display = 'none';
+    fname.textContent = '';
+  }
+}
+
+// Drag and drop on drop-zone
+document.addEventListener('DOMContentLoaded', () => {
+  // File drop zone
+  const dz = document.getElementById('drop-zone');
+  if(dz){
+    dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', ()=> dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+  }
+  // ZIP drop zone
+  const zdz = document.getElementById('zip-drop-zone');
+  if(zdz){
+    zdz.addEventListener('dragover', e=>{ e.preventDefault(); zdz.classList.add('dragover'); });
+    zdz.addEventListener('dragleave', ()=> zdz.classList.remove('dragover'));
+    zdz.addEventListener('drop', e=>{ e.preventDefault(); zdz.classList.remove('dragover'); if(e.dataTransfer.files[0]) handleZip(e.dataTransfer.files[0]); });
+  }
+});
+
+function openImport(){
+  document.getElementById('overlay-import').classList.add('open');
+  document.getElementById('inp-loaded').value = new Date().toLocaleString('it-IT');
+  document.getElementById('inp-nome').value = '';
+  // Reset file tab
+  pendingFiles = [];
+  const fi = document.getElementById('file-input');
+  if(fi) fi.value = '';
+  const fol = document.getElementById('folder-input');
+  if(fol) fol.value = '';
+  const fname = document.getElementById('drop-fname');
+  const minfo = document.getElementById('drop-multi-info');
+  if(fname) fname.textContent = '';
+  if(minfo) minfo.textContent = '';
+  // Reset text tab
+  const ji = document.getElementById('json-input');
+  if(ji) ji.value = '';
+  const js = document.getElementById('json-status');
+  if(js) js.innerHTML = '';
+  // Start on file tab
+  switchImportTab('file');
+}
+function closeImport(){ document.getElementById('overlay-import').classList.remove('open'); }
+
+function copyPrompt(){
+  const t = document.getElementById('prompt-box').textContent;
+  navigator.clipboard.writeText(t)
+    .then(()=>showToast('Prompt copiato ✓','success'))
+    .catch(()=>{
+      const ta=document.createElement('textarea');ta.value=t;
+      document.body.appendChild(ta);ta.select();document.execCommand('copy');
+      document.body.removeChild(ta);showToast('Prompt copiato ✓','success');
+    });
+}
+
+function validateJSON(){
+  const raw = document.getElementById('json-input')?.value.trim() || '';
+  const btn = document.getElementById('btn-import');
+  const st  = document.getElementById('json-status');
+  if(!raw){ if(st) st.innerHTML=''; if(btn) btn.disabled=true; return; }
+  try {
+    const d = JSON.parse(raw);
+    if(!d.anagrafica && !d.titolo) throw new Error('Struttura non riconosciuta');
+    if(st) st.innerHTML = '<div class="validate-ok">✔ JSON valido — pronto per l\'importazione</div>';
+    if(btn) btn.disabled = false;
+  } catch(e) {
+    if(st) st.innerHTML = '<div class="validate-err">✖ ' + e.message + '</div>';
+    if(btn) btn.disabled = true;
+  }
+}
+
+function doImport(){
+  // Determina tab attivo
+  const isFile = document.getElementById('itab-file').classList.contains('active');
+  const nome = document.getElementById('inp-nome').value.trim();
+
+  if(isFile){
+    // Importa tutti i file in coda
+    if(!pendingFiles.length){ showToast('Nessun file valido da importare','error'); return; }
+    let importati = 0;
+    let lastData = null;
+    pendingFiles.forEach((item, idx) => {
+      const d = item.data;
+      // Nome personalizzato solo se un singolo file e nome inserito
+      if(nome && pendingFiles.length === 1) d.titolo = nome;
+      d.id = Date.now() + idx;
+      d.importedAt = new Date().toLocaleString('it-IT');
+      d.filename = item.filename;
+      verbali.push(d);
+      lastData = d;
+      importati++;
+    });
+    closeImport();
+    renderSidebar();
+    if(lastData) loadReport(lastData);
+    markUnsaved();
+    showToast(importati === 1
+      ? 'Verbale importato ✓'
+      : importati + ' verbali importati ✓ — clicca 💾 per salvare',
+      'success');
+  } else {
+    // Importa da testo incollato
+    const raw = document.getElementById('json-input').value.trim();
+    let data;
+    try { data = JSON.parse(raw); } catch(e){ showToast('JSON non valido','error'); return; }
+    if(nome) data.titolo = nome;
+    data.id = Date.now();
+    data.importedAt = new Date().toLocaleString('it-IT');
+    verbali.push(data);
+    closeImport();
+    renderSidebar();
+    loadReport(data);
+    markUnsaved();
+    showToast('Verbale importato ✓','success');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════════════════
+// ordine corrente: 'data' | 'nome' | 'imp'; direzione: 1 asc, -1 desc
+let sortMode = 'data', sortDir = -1;
+
+function setSort(mode){
+  if(sortMode === mode){ sortDir *= -1; }
+  else { sortMode = mode; sortDir = mode === 'data' ? -1 : 1; }
+  ['data','nome','imp'].forEach(m=>{
+    const b = document.getElementById('sort-'+m);
+    if(b) b.classList.toggle('active', m === mode);
+  });
+  renderSidebar();
+}
+
+function parseDate(str){
+  // Formati attesi: "13/01/2026" o "2026-01-13"
+  if(!str) return 0;
+  const p = str.split('/');
+  if(p.length===3) return new Date(p[2],p[1]-1,p[0]).getTime();
+  return new Date(str).getTime() || 0;
+}
+
+function renderSidebar(){
+  const list = document.getElementById('verbale-list');
+  const countEl = document.getElementById('sidebar-count');
+  const q = (document.getElementById('sidebar-search')?.value || '').toLowerCase().trim();
+
+  if(!verbali.length){
+    list.innerHTML = '<div class="sidebar-empty">Nessun verbale.<br>Clicca "Aggiungi verbale" per iniziare.</div>';
+    if(countEl) countEl.textContent = '';
+    return;
+  }
+
+  // Crea copia con indice originale
+  let items = verbali.map((v, i) => ({ v, i }));
+
+  // Filtra per ricerca
+  if(q){
+    items = items.filter(({v}) => {
+      const nome = (v.titolo || v.anagrafica?.denominazione || '').toLowerCase();
+      const data = (v.anagrafica?.data_assemblea || '').toLowerCase();
+      const ind  = (v.anagrafica?.indirizzo || '').toLowerCase();
+      return nome.includes(q) || data.includes(q) || ind.includes(q);
+    });
+  }
+
+  // Ordina
+  items.sort((a, b) => {
+    let va, vb;
+    if(sortMode === 'data'){
+      va = parseDate(a.v.anagrafica?.data_assemblea);
+      vb = parseDate(b.v.anagrafica?.data_assemblea);
+    } else if(sortMode === 'nome'){
+      va = (a.v.titolo || a.v.anagrafica?.denominazione || '').toLowerCase();
+      vb = (b.v.titolo || b.v.anagrafica?.denominazione || '').toLowerCase();
+    } else {
+      va = a.i; vb = b.i;
+    }
+    if(va < vb) return -1 * sortDir;
+    if(va > vb) return  1 * sortDir;
+    return 0;
+  });
+
+  if(countEl){
+    const tot = verbali.length;
+    const vis = items.length;
+    const arrow = sortDir === 1 ? '↑' : '↓';
+    const modeLabel = {data:'data',nome:'nome',imp:'import'}[sortMode];
+    countEl.textContent = q ? `${vis} di ${tot} verbali · ${modeLabel} ${arrow}` : `${tot} verbali · ${modeLabel} ${arrow}`;
+  }
+
+  list.innerHTML = items.length ? items.map(({v, i}) => {
+    const isA = current && current.id === v.id;
+    const data = v.anagrafica?.data_assemblea || '';
+    const denom = v.titolo || v.anagrafica?.denominazione || 'Verbale';
+    return `<div class="verbale-item ${isA?'active':''}" onclick="loadReport(verbali[${i}])">
+      <div class="verbale-item-name">${denom}</div>
+      <div class="verbale-item-meta">${data}${data?' · ':''}${v.importedAt||''}</div>
+      <button class="verbale-item-del" onclick="event.stopPropagation();delVerbale(${i})" title="Elimina">✕</button>
+    </div>`;
+  }).join('') : '<div class="sidebar-empty">Nessun verbale trovato.</div>';
+}
+
+function delVerbale(i){
+  if(!confirm('Eliminare questo verbale dall\'archivio?')) return;
+  verbali.splice(i,1);
+  if(!verbali.length){ current=null; showScreen('welcome'); }
+  else if(current && !verbali.find(v=>v.id===current.id)) loadReport(verbali[verbali.length-1]);
+  renderSidebar();
+  markUnsaved();
+}
+
+// ══════════════════════════════════════════════════════
+// REPORT RENDERING
+// ══════════════════════════════════════════════════════
+function loadReport(r){
+  current = r;
+  renderAll(r);
+  showScreen('report');
+  switchTabById('anagrafica');
+  renderSidebar();
+}
+
+function renderAll(r){
+  const a=r.anagrafica||{}, o=r.organi||{}, adm=r.amministratore||{};
+  document.getElementById('rpt-title').textContent = r.titolo || a.denominazione || 'Verbale';
+  document.getElementById('rpt-sub').textContent   = (a.data_assemblea||'') + (a.indirizzo?' · '+a.indirizzo:'');
+
+  const sg = document.getElementById('stat-grid');
+  const dur = calcDur(a.ora_inizio, a.ora_chiusura);
+  sg.innerHTML = [
+    {l:'Condòmini Convocati', v:a.totale_convocati||'—', s:''},
+    {l:'Presenti / Delegati', v:a.totale_presenti_delegati||'—', s:''},
+    {l:'Mill. Rappresentati', v:a.millesimi_rappresentati||'—', s:'su '+(a.millesimi_totali||1000)+' totali'},
+    {l:'Quorum', v:a.quorum_raggiunto?'✔':'✖', s:a.quorum_raggiunto?'Assemblea valida':'Non raggiunto'},
+    {l:'Durata', v:dur, s:(a.ora_inizio||'')+(a.ora_chiusura?' → '+a.ora_chiusura:'')},
+  ].map((s,i)=>`<div class="stat-card ${i<2?'stat-accent':''}"><div class="stat-lbl">${s.l}</div><div class="stat-val">${s.v}</div>${s.s?`<div class="stat-sub">${s.s}</div>`:''}</div>`).join('');
+
+  document.getElementById('tbl-ana').innerHTML=[
+    ['Denominazione',a.denominazione],['Indirizzo',a.indirizzo],['Luogo assemblea',a.luogo_assemblea],
+    ['Data assemblea',a.data_assemblea],['Ora inizio',a.ora_inizio],['Ora chiusura',a.ora_chiusura],
+    ['Tipo convocazione',a.tipo_convocazione],['Rif. normativo',a.rif_normativo],
+  ].map(([k,v])=>`<tr><td style="width:44%;font-weight:600;color:var(--slate);">${k}</td><td>${v||'—'}</td></tr>`).join('');
+
+  document.getElementById('tbl-org').innerHTML=[
+    ['Presidente',o.presidente],['Segretario',o.segretario],
+    ['Firma Presidente',o.firma_presidente],['Firma Segretario',o.firma_segretario],
+  ].map(([k,v])=>`<tr><td style="width:52%;font-weight:600;color:var(--slate);">${k}</td><td>${v||'—'}</td></tr>`).join('');
+
+  document.getElementById('tbl-adm').innerHTML=[
+    ['Soggetto',adm.nominativo],['Compenso',adm.compenso],
+    ['Esito',adm.esito?`<span class="badge bg">✔ ${adm.esito}</span>`:'—'],
+  ].map(([k,v])=>`<tr><td style="width:40%;font-weight:600;color:var(--slate);">${k}</td><td>${v||'—'}</td></tr>`).join('');
+
+  const ps = r.partecipanti||[];
+  const maxM = Math.max(...ps.map(p=>+p.millesimi||0),1);
+  const totM = ps.reduce((s,p)=>s+(+p.millesimi||0),0);
+  document.getElementById('tbl-part').innerHTML = ps.map(p=>{
+    const isP = p.modalita==='PRESENTE';
+    return `<tr>
+      <td style="text-align:center;font-family:'DM Mono',monospace;font-weight:700;">${String(p.n||'').padStart(2,'0')}</td>
+      <td><strong>${p.nominativo||''}</strong></td>
+      <td><span class="badge ${isP?'bg':'bgold'}">${isP?'● PRESENTE':'⇢ DELEGA'}</span></td>
+      <td style="font-size:12px;">${p.delegato||'—'}</td>
+      <td><div class="mbar"><div class="mbar-t"><div class="mbar-f" style="width:${((+p.millesimi||0)/maxM*100).toFixed(1)}%"></div></div><span class="mbar-v">${p.millesimi||0}</span></div></td>
+      <td style="font-size:11px;color:var(--fog);">${p.note||''}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mill-tot').textContent = totM;
+
+  const presenti = ps.filter(p=>p.modalita==='PRESENTE');
+  const delegati = ps.filter(p=>p.modalita==='DELEGA');
+  const dmap={};
+  delegati.forEach(d=>{const k=d.delegato||'';if(!dmap[k])dmap[k]=[];dmap[k].push(d);});
+
+  document.getElementById('tbl-pres-mill').innerHTML = presenti.map(p=>{
+    const miei=+p.millesimi||0, dl=dmap[p.nominativo]||[], md=dl.reduce((s,d)=>s+(+d.millesimi||0),0), tot=miei+md;
+    return `<tr><td><strong>${p.nominativo}</strong></td><td><span class="badge bs">${miei}</span></td><td style="font-size:11px;">${dl.map(d=>d.nominativo+'('+d.millesimi+')').join(', ')||'—'}</td><td><strong>${tot}</strong></td><td style="font-family:'DM Mono',monospace;font-size:11px;">${(tot/10).toFixed(1)}%</td></tr>`;
+  }).join('');
+
+  document.getElementById('tbl-del-mill').innerHTML = delegati.map(d=>`<tr><td>${d.nominativo}</td><td><span class="badge bgold">${d.millesimi||0}</span></td><td style="font-size:12px;">${d.delegato||'—'}</td><td style="font-family:'DM Mono',monospace;font-size:11px;">${((+d.millesimi||0)/10).toFixed(1)}%</td></tr>`).join('');
+
+  const mMax=Math.max(...ps.map(p=>+p.millesimi||0),1);
+  document.getElementById('chart-mill').innerHTML = ps.map(p=>{
+    const isP=p.modalita==='PRESENTE', pct=((+p.millesimi||0)/mMax*100).toFixed(1);
+    return `<div style="display:flex;align-items:center;gap:14px;margin-bottom:11px;">
+      <div style="width:190px;text-align:right;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.nominativo}</div>
+      <div style="flex:1;background:var(--line);border-radius:4px;height:24px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${isP?'linear-gradient(to right,var(--emerald),#2ea06a)':'linear-gradient(to right,var(--sky),#4e94d0)'};display:flex;align-items:center;padding-left:8px;">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:#fff;font-weight:600;">${p.millesimi||0}</span>
+        </div>
+      </div>
+      <span class="badge ${isP?'bg':'bgold'}" style="width:68px;justify-content:center;font-size:9px;">${isP?'PRESENTE':'DELEGA'}</span>
+    </div>`;
+  }).join('');
+
+  const emap={approvato:['bg','✔ Approvato'],respinto:['br','✖ Non approvato'],rinviato:['bgr','↺ Rinviato'],parziale:['ba','⚡ Parziale']};
+  document.getElementById('odg-cards').innerHTML=(r.odg||[]).map(o=>{
+    const[bc,bl]=emap[o.esito_badge||'approvato']||emap.approvato;
+    return `<div class="odg-card">
+      <div class="odg-head"><div class="odg-num">${o.n}</div><h3>${o.titolo||''}</h3><span class="badge ${bc}">${bl}</span></div>
+      <div class="odg-meta">
+        <div class="odg-f"><label>Tipo delibera</label><p>${o.tipo||'—'}</p></div>
+        <div class="odg-f"><label>Delibera</label><p>${o.delibera||'—'}</p></div>
+        <div class="odg-f"><label>Esito votazione</label><p>${o.esito||'—'}</p></div>
+        <div class="odg-f"><label>Importo</label><p>${o.importo||'—'}</p></div>
+        <div class="odg-f"><label>Rif. normativo</label><p>${o.rif_normativo||'—'}</p></div>
+      </div>
+      ${o.note?`<div class="odg-note">⚠️ ${o.note}</div>`:''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('rel-blocks').innerHTML=(r.odg||[]).map(o=>`
+    <div class="rel-block">
+      <div class="rel-head"><div class="rel-n">${o.n}</div><h3>${o.titolo||''}</h3></div>
+      <div class="rel-body">${o.relazione||'Nessuna relazione disponibile.'}</div>
+    </div>`).join('');
+
+  renderAdemp();
+}
+
+function renderAdemp(){
+  if(!current) return;
+  const fU=document.getElementById('f-u').value, fA=document.getElementById('f-a').value, fS=document.getElementById('f-s').value;
+  const ucls={urgente:'uu',alta:'ua',media:'um',bassa:'ub'};
+  const ULBL={urgente:'🔴 Urgente',alta:'🟠 Alta',media:'🟡 Media',bassa:'🟢 Bassa'};
+  const SLBL={'da-fare':'⬜ Da fare','in-corso':'🔄 In corso','completato':'✅ Completato','annullato':'❌ Annullato'};
+  const uopts=v=>Object.entries(ULBL).map(([k,l])=>`<option value="${k}"${v===k?' selected':''}>${l}</option>`).join('');
+  const sopts=v=>Object.entries(SLBL).map(([k,l])=>`<option value="${k}"${v===k?' selected':''}>${l}</option>`).join('');
+
+  const rows=(current.adempimenti||[]).filter(a=>{
+    if(fU&&a.urgenza!==fU) return false;
+    if(fA&&!a.area.includes(fA)) return false;
+    if(fS&&a.stato!==fS) return false;
+    return true;
+  });
+
+  document.getElementById('tbl-ademp').innerHTML = rows.map(a=>{
+    const idx=(current.adempimenti||[]).indexOf(a);
+    return `<tr>
+      <td style="text-align:center;font-family:'DM Mono',monospace;font-weight:700;color:var(--sky);">${String(a.n).padStart(2,'0')}</td>
+      <td style="max-width:280px;">${a.attivita||''}</td>
+      <td><span class="badge bs" style="font-size:9px;">${a.area||''}</span></td>
+      <td><select class="urg-sel ${ucls[a.urgenza]||''}" onchange="updateAdemp(${idx},'urgenza',this.value);this.className='urg-sel '+({'urgente':'uu','alta':'ua','media':'um','bassa':'ub'}[this.value]||'')">${uopts(a.urgenza)}</select></td>
+      <td style="font-size:12px;">${a.responsabile||'—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;">${a.scadenza||'—'}</td>
+      <td><select class="stato-sel" onchange="updateAdemp(${idx},'stato',this.value)">${sopts(a.stato)}</select></td>
+    </tr>`;
+  }).join('');
+}
+
+// Aggiorna adempimento e autosalva
+function updateAdemp(idx, field, value) {
+  if(current && current.adempimenti && current.adempimenti[idx]) {
+    current.adempimenti[idx][field] = value;
+    // Aggiorna anche nell'array verbali
+    const vi = verbali.findIndex(v => v.id === current.id);
+    if(vi >= 0) verbali[vi] = current;
+    markUnsaved();
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════
+function exportJSON(){
+  if(!current) return;
+  const blob = new Blob([JSON.stringify(current,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=(current.titolo||'verbale').replace(/[^a-zA-Z0-9]/g,'_')+'_dati.json';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('JSON esportato ✓','success');
+}
+
+function downloadXLSX(){
+  const r=current; if(!r) return;
+  const wb=XLSX.utils.book_new();
+  const a=r.anagrafica||{},o=r.organi||{},adm=r.amministratore||{};
+
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+    ['ANAGRAFICA CONDOMINIO',''],['',''],
+    ['Denominazione',a.denominazione||''],['Indirizzo',a.indirizzo||''],
+    ['Luogo assemblea',a.luogo_assemblea||''],['Data assemblea',a.data_assemblea||''],
+    ['Ora inizio',a.ora_inizio||''],['Ora chiusura',a.ora_chiusura||''],
+    ['Tipo convocazione',a.tipo_convocazione||''],['Rif. normativo',a.rif_normativo||''],
+    ['',''],['ORGANI ASSEMBLEARI',''],
+    ['Presidente',o.presidente||''],['Segretario',o.segretario||''],
+    ['Firma Presidente',o.firma_presidente||''],['Firma Segretario',o.firma_segretario||''],
+    ['',''],['AMMINISTRATORE',''],
+    ['Nominativo',adm.nominativo||''],['Compenso',adm.compenso||''],['Esito',adm.esito||''],
+    ['',''],['QUORUM',''],
+    ['Totale convocati',a.totale_convocati||''],['Presenti/Delegati',a.totale_presenti_delegati||''],
+    ['Millesimi totali',a.millesimi_totali||1000],['Millesimi rappresentati',a.millesimi_rappresentati||''],
+    ['Quorum raggiunto',a.quorum_raggiunto?'SÌ':'NO'],
+  ]),'1. Anagrafica');
+
+  const ps=r.partecipanti||[];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+    ['N°','Nominativo','Modalità','Delegato','Millesimi','Note'],
+    ...ps.map(p=>[p.n,p.nominativo,p.modalita,p.delegato||'—',p.millesimi||0,p.note||'']),
+    ['','','','TOTALE',ps.reduce((s,p)=>s+(+p.millesimi||0),0),''],
+  ]),'2. Partecipanti');
+
+  const dmap2={};
+  ps.filter(p=>p.modalita==='DELEGA').forEach(d=>{if(!dmap2[d.delegato||''])dmap2[d.delegato||'']=0;dmap2[d.delegato||'']+=+d.millesimi||0;});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+    ['Condòmino','Modalità','Mill. Propri','Delega Ricevuta/Delegato a','Totale Gestiti','%'],
+    ...ps.map(p=>{const m=+p.millesimi||0,md=p.modalita==='PRESENTE'?dmap2[p.nominativo]||0:0,tot=m+md;return[p.nominativo,p.modalita,m,p.modalita==='DELEGA'?'→ '+p.delegato:md?'Riceve '+md+' mill.':'—',tot,(tot/10).toFixed(1)+'%'];}),
+  ]),'3. Millesimi');
+
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+    ['N°','Titolo','Tipo','Delibera','Esito','Importo','Rif. Normativo','Note'],
+    ...(r.odg||[]).map(o=>[o.n,o.titolo,o.tipo,o.delibera,o.esito,o.importo||'—',o.rif_normativo||'—',o.note||'']),
+  ]),'4. Ordine del Giorno');
+
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+    ['N°','Punto OdG','Relazione'],
+    ...(r.odg||[]).map(o=>[o.n,o.titolo,o.relazione||'']),
+  ]),'5. Relazione');
+
+  const ul={urgente:'URGENTE',alta:'ALTA',media:'MEDIA',bassa:'BASSA'};
+  const sl={'da-fare':'Da fare','in-corso':'In corso','completato':'Completato','annullato':'Annullato'};
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([
+    ['N°','Attività','Area','Urgenza','Responsabile','Scadenza','Stato'],
+    ...(r.adempimenti||[]).map(a=>[a.n,a.attivita,a.area,ul[a.urgenza]||a.urgenza,a.responsabile,a.scadenza,sl[a.stato]||a.stato]),
+  ]),'6. Adempimenti');
+
+  const fname=(r.titolo||'Verbale').replace(/[^a-zA-Z0-9\s]/g,'').trim().replace(/\s+/g,'_');
+  XLSX.writeFile(wb, fname+'_Report.xlsx');
+  showToast('Download XLSX avviato ✓','success');
+}
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('screen-'+id).classList.add('active'); }
+function switchTab(id,btn){ document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.rtab-panel').forEach(p=>p.classList.remove('active')); btn.classList.add('active'); document.getElementById('tp-'+id).classList.add('active'); if(id==='adempimenti')renderAdemp(); if(id==='verbale')renderVerbale(); }
+function renderVerbale(){
+  if(!current) return;
+  const wrap = document.getElementById('verbale-doc-wrap');
+  const testo = current.testo_verbale || '';
+  const a = current.anagrafica || {};
+  if(!testo){
+    wrap.innerHTML = '<div class="verbale-doc-empty"><div class="empty-icon">📄</div>Nessun testo verbale disponibile.<br>Assicurati che il JSON generato da Claude includa il campo <code style="font-family:\'DM Mono\',monospace;font-size:12px;background:var(--paper);padding:2px 6px;border-radius:3px;">testo_verbale</code>.</div>';
+    return;
+  }
+  const denom = current.titolo || a.denominazione || 'Verbale';
+  const data  = a.data_assemblea || '';
+  const luogo = a.luogo_assemblea || '';
+  const meta  = [data, luogo].filter(Boolean).join(' · ');
+  // Escape HTML sicuro
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  wrap.innerHTML = `
+    <div class="verbale-doc-header">
+      <div>
+        <h2>${esc(denom)}</h2>
+        ${meta ? `<div class="verbale-doc-meta">${esc(meta)}</div>` : ''}
+      </div>
+      <button class="btn btn-outline" style="font-size:11px;" onclick="window.print()" title="Stampa verbale">🖨 Stampa</button>
+    </div>
+    <div class="verbale-testo">${esc(testo)}</div>`;
+}
+
+function switchTabById(id){ const b=[...document.querySelectorAll('.rtab')].find(b=>b.getAttribute('onclick')?.includes("'"+id+"'")); if(b) switchTab(id,b); }
+function calcDur(s,e){ try{const p=t=>{const[h,m]=t.split(':').map(Number);return h*60+m;};const d=p(e)-p(s);return isNaN(d)||d<0?'—':d+' min';}catch{return'—';} }
+function showToast(msg,type=''){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast '+type+' show'; setTimeout(()=>t.classList.remove('show'),4000); }
+
+// ══════════════════════════════════════════════════════
+// INIT — carica da localStorage o da dati baked-in
+// ══════════════════════════════════════════════════════
+(function init(){
+  /* __BAKED_DATA__ */
+
+  // Leggi Client ID da localStorage se non è ancora nel sorgente
+  const savedClientId = localStorage.getItem('drive_client_id');
+  if (savedClientId && DRIVE_CLIENT_ID === '__YOUR_CLIENT_ID__') {
+    window._driveClientIdRuntime = savedClientId;
+    driveConfigured = true;
+  }
+
+  // Ripristina file ID e cartella da localStorage
+  const savedFileId = localStorage.getItem('drive_file_id');
+  if (savedFileId) driveFileId = savedFileId;
+  const savedFolderId = localStorage.getItem('drive_folder_id');
+  const savedFolderName = localStorage.getItem('drive_folder_name');
+  if (savedFolderId) { driveFolderId = savedFolderId; driveFolderName = savedFolderName || 'Cartella Drive'; }
+
+  // Carica da localStorage
+  const fromLS = persistLoad();
+  if(fromLS && verbali.length){
+    renderSidebar();
+    loadReport(verbali[verbali.length-1]);
+    updateSaveBadge('saved');
+    showToast('📂 '+ verbali.length +' verbale/i ripristinati','info');
+  }
+
+  // Mostra stato Drive iniziale
+  if (!driveConfigured) {
+    driveSetUI('disconnected', 'Drive non configurato');
+  } else if (driveFolderId) {
+    driveSetUI('disconnected', `Drive pronto · "${driveFolderName}" · clicca Connetti`);
+  } else {
+    driveSetUI('disconnected', 'Drive configurato — clicca Connetti');
+  }
+})();
+</script>
+</body>
+</html>
