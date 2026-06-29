@@ -345,7 +345,7 @@ tfoot td{padding:10px 13px;font-family:'DM Mono',monospace;font-size:12px;color:
         <div class="welcome-sub">Sistema di analisi e gestione verbali assembleari condominiali. Carica il verbale su Claude per l'analisi AI, importa il JSON qui per visualizzare il report, poi salva il file aggiornato per preservare tutti i dati alla riapertura.</div>
         <div class="steps">
           <div class="step-card"><div class="step-n">1</div><h4>Analizza su Claude</h4><p>Carica il PDF su Claude.ai e chiedi il JSON strutturato</p></div>
-          <div class="step-card"><div class="step-n">2</div><h4>Importa JSON</h4><p>Incolla il JSON nell'app per generare il report</p></div>
+          <div class="step-card"><div class="step-n">2</div><h4>Analisi automatica</h4><p>Claude AI estrae tutti i dati dal verbale in pochi secondi</p></div>
           <div class="step-card"><div class="step-n">3</div><h4>Modifica</h4><p>Aggiorna stato adempimenti, filtra, stampa</p></div>
           <div class="step-card"><div class="step-n">4</div><h4>Salva file</h4><p>💾 Salva il file HTML con tutti i dati incorporati</p></div>
         </div>
@@ -448,13 +448,43 @@ tfoot td{padding:10px 13px;font-family:'DM Mono',monospace;font-size:12px;color:
 <!-- IMPORT MODAL -->
 <div class="overlay" id="overlay-import">
   <div class="modal">
-    <div class="modal-title">Importa Verbale Analizzato</div>
-    <div class="modal-sub">Carica uno o più file JSON oppure incolla il testo direttamente.</div>
+    <div class="modal-title">Nuovo Verbale</div>
+    <div class="modal-sub">Analizza un PDF direttamente oppure importa un JSON già generato.</div>
 
     <!-- TABS -->
     <div class="import-tabs">
-      <button class="import-tab active" id="itab-file" onclick="switchImportTab('file')">📂 Carica file JSON</button>
+      <button class="import-tab active" id="itab-pdf" onclick="switchImportTab('pdf')">🤖 Analizza PDF</button>
+      <button class="import-tab" id="itab-file" onclick="switchImportTab('file')">📂 Importa JSON</button>
       <button class="import-tab" id="itab-text" onclick="switchImportTab('text')">📋 Incolla testo</button>
+    </div>
+
+    <!-- PDF TAB -->
+    <div id="ipanel-pdf">
+      <input type="file" id="pdf-input" accept=".pdf" style="display:none;" onchange="handlePdfSelected(this.files[0])">
+      <div class="drop-zone" id="pdf-drop-zone" onclick="document.getElementById('pdf-input').click()" style="cursor:pointer;">
+        <div class="drop-icon">📄</div>
+        <div class="drop-text">
+          <strong>Trascina qui il PDF del verbale</strong>
+          oppure clicca per selezionarlo
+        </div>
+        <div class="drop-fname" id="pdf-fname" style="color:var(--emerald);font-family:'DM Mono',monospace;font-size:11px;margin-top:5px;"></div>
+      </div>
+      <div id="pdf-analyze-wrap" style="display:none;margin-top:14px;">
+        <div style="background:var(--sky-bg);border:1px solid #b8d4ef;border-radius:8px;padding:12px 14px;font-size:12px;color:var(--sky);margin-bottom:12px;">
+          ℹ️ Il PDF verrà inviato a Claude AI per l'analisi automatica. Il processo richiede 10-30 secondi.
+        </div>
+        <button class="btn btn-gold" style="width:100%;justify-content:center;font-size:14px;padding:12px;" id="btn-analyze-pdf" onclick="analyzePdf()">
+          🤖 Analizza con Claude AI
+        </button>
+      </div>
+      <div id="pdf-progress" style="display:none;margin-top:14px;">
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:16px;text-align:center;">
+          <div style="font-size:24px;margin-bottom:8px;">⏳</div>
+          <div style="font-size:13px;font-weight:600;color:var(--ink);" id="pdf-progress-msg">Analisi in corso...</div>
+          <div style="font-size:11px;color:var(--fog);margin-top:4px;">Claude sta leggendo il verbale — attendi qualche secondo</div>
+        </div>
+      </div>
+      <div id="pdf-error" style="display:none;margin-top:12px;background:#fff0f0;border:1px solid #f5c6cb;border-radius:8px;padding:12px 14px;font-size:12px;color:#c0392b;"></div>
     </div>
 
     <!-- FILE TAB -->
@@ -1080,13 +1110,14 @@ function saveHTMLFile() {
 // ══════════════════════════════════════════════════════
 // ── IMPORT TAB SWITCH ────────────────────────────────
 function switchImportTab(tab){
-  document.getElementById('itab-file').classList.toggle('active', tab==='file');
-  document.getElementById('itab-text').classList.toggle('active', tab==='text');
-  document.getElementById('ipanel-file').style.display = tab==='file' ? '' : 'none';
-  document.getElementById('ipanel-text').style.display = tab==='text' ? '' : 'none';
-  // reset button state based on tab
+  ['pdf','file','text'].forEach(t=>{
+    const btn = document.getElementById('itab-'+t);
+    const panel = document.getElementById('ipanel-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+    if(panel) panel.style.display = t===tab ? '' : 'none';
+  });
   if(tab==='file') updateFileBtn();
-  else validateJSON();
+  else if(tab==='text') validateJSON();
 }
 
 // ── FILE DROP + MULTI-IMPORT ─────────────────────────
@@ -1239,10 +1270,128 @@ function openImport(){
   if(ji) ji.value = '';
   const js = document.getElementById('json-status');
   if(js) js.innerHTML = '';
-  // Start on file tab
-  switchImportTab('file');
+  // Reset PDF tab
+  const pdfFname = document.getElementById('pdf-fname');
+  if(pdfFname) pdfFname.textContent = '';
+  const pdfWrap = document.getElementById('pdf-analyze-wrap');
+  if(pdfWrap) pdfWrap.style.display = 'none';
+  const pdfProg = document.getElementById('pdf-progress');
+  if(pdfProg) pdfProg.style.display = 'none';
+  const pdfErr = document.getElementById('pdf-error');
+  if(pdfErr) pdfErr.style.display = 'none';
+  window._selectedPdfFile = null;
+  // Start on PDF tab
+  switchImportTab('pdf');
 }
 function closeImport(){ document.getElementById('overlay-import').classList.remove('open'); }
+
+// ══════════════════════════════════════════════════════
+// ANALISI PDF VIA CLAUDE API (Supabase Edge Function)
+// ══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://etrwrxahdbrswljzrzra.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_NSez7ZFpvDDZhr-34ZQxFg_QTgw4Gnk';
+
+function handlePdfSelected(file) {
+  if (!file || !file.name.endsWith('.pdf')) {
+    showToast('Seleziona un file PDF', 'error'); return;
+  }
+  window._selectedPdfFile = file;
+  const fname = document.getElementById('pdf-fname');
+  if (fname) fname.textContent = '✔ ' + file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)';
+  const wrap = document.getElementById('pdf-analyze-wrap');
+  if (wrap) wrap.style.display = 'block';
+  const err = document.getElementById('pdf-error');
+  if (err) err.style.display = 'none';
+}
+
+// Drag & drop sul pdf-drop-zone
+document.addEventListener('DOMContentLoaded', () => {
+  const pdz = document.getElementById('pdf-drop-zone');
+  if (pdz) {
+    pdz.addEventListener('dragover', e => { e.preventDefault(); pdz.classList.add('dragover'); });
+    pdz.addEventListener('dragleave', () => pdz.classList.remove('dragover'));
+    pdz.addEventListener('drop', e => {
+      e.preventDefault();
+      pdz.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) handlePdfSelected(file);
+    });
+  }
+});
+
+async function analyzePdf() {
+  const file = window._selectedPdfFile;
+  if (!file) { showToast('Nessun PDF selezionato', 'error'); return; }
+
+  // Mostra progress
+  document.getElementById('pdf-analyze-wrap').style.display = 'none';
+  document.getElementById('pdf-progress').style.display = 'block';
+  document.getElementById('pdf-error').style.display = 'none';
+
+  const msgs = [
+    'Lettura del documento in corso...',
+    'Claude sta analizzando il verbale...',
+    'Estrazione dati assembleari...',
+    'Quasi pronto...'
+  ];
+  let mi = 0;
+  const msgEl = document.getElementById('pdf-progress-msg');
+  const msgInterval = setInterval(() => {
+    mi = (mi + 1) % msgs.length;
+    if (msgEl) msgEl.textContent = msgs[mi];
+  }, 4000);
+
+  try {
+    // Converti PDF in base64
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result.split(',')[1]);
+      reader.onerror = () => rej(new Error('Errore lettura file'));
+      reader.readAsDataURL(file);
+    });
+
+    // Chiama Supabase Edge Function
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/analizza-verbale`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ pdf_base64: base64, filename: file.name })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Errore analisi PDF');
+    }
+
+    const verbale = result.verbale;
+    verbale.id = Date.now();
+    verbale.importedAt = new Date().toLocaleString('it-IT');
+    verbale.filename = file.name;
+    verbale._source = 'claude_pdf';
+
+    verbali.push(verbale);
+    closeImport();
+    renderSidebar();
+    loadReport(verbale);
+    markUnsaved();
+    showToast('🤖 Verbale analizzato e importato ✓', 'success');
+
+  } catch (e) {
+    document.getElementById('pdf-progress').style.display = 'none';
+    document.getElementById('pdf-analyze-wrap').style.display = 'block';
+    const errEl = document.getElementById('pdf-error');
+    errEl.style.display = 'block';
+    errEl.textContent = '❌ ' + (e.message || 'Errore sconosciuto') + ' — riprova o usa il tab "Importa JSON".';
+    showToast('Errore analisi PDF: ' + e.message, 'error');
+  } finally {
+    clearInterval(msgInterval);
+    document.getElementById('pdf-progress').style.display = 'none';
+  }
+}
 
 function copyPrompt(){
   const t = document.getElementById('prompt-box').textContent;
