@@ -221,6 +221,13 @@ tfoot td{padding:10px 13px;font-family:'DM Mono',monospace;font-size:12px;color:
 .btn-drive:hover{box-shadow:0 1px 3px rgba(0,0,0,.2);}
 .btn-drive svg{width:14px;height:14px;flex-shrink:0;}
 
+/* DRIVE ACTIONS */
+.drive-actions{display:flex;gap:6px;padding:6px 12px 8px;background:var(--paper);border-bottom:1px solid var(--line);}
+.btn-drive-action{flex:1;padding:6px 8px;border-radius:5px;font-size:11px;font-weight:600;font-family:"DM Sans",sans-serif;cursor:pointer;border:1px solid var(--line);background:var(--white);color:var(--slate);transition:all .15s;text-align:center;}
+.btn-drive-action:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-pale);}
+.btn-drive-save-now{background:#1a4a2e;color:#5dbd8a;border-color:#2a7a4e;}
+.btn-drive-save-now:hover{background:#1e5c38;color:#6dd4a0;border-color:#2a7a4e;}
+
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--ink);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;max-width:320px;}
 .toast.show{transform:translateY(0);opacity:1;}
@@ -295,6 +302,15 @@ tfoot td{padding:10px 13px;font-family:'DM Mono',monospace;font-size:12px;color:
       <button class="btn-drive" id="drive-btn" onclick="driveConnect()">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11L4 22H20L12 11Z" fill="#0F9D58"/><path d="M20 22L14 11H22L20 22Z" fill="#4285F4" opacity=".5"/><path d="M8 2L2 12L6 19L12 9L8 2Z" fill="#FBBC05"/><path d="M16 2H8L12 9L16 2Z" fill="#EA4335" opacity=".7"/></svg>
         Connetti
+      </button>
+    </div>
+    <!-- DRIVE ACTIONS: visibili solo quando connesso -->
+    <div class="drive-actions" id="drive-actions" style="display:none;">
+      <button class="btn-drive-action" id="btn-drive-refresh" onclick="driveRefresh()" title="Scarica aggiornamenti da Drive">
+        🔄 Aggiorna
+      </button>
+      <button class="btn-drive-action btn-drive-save-now" id="btn-drive-save-now" onclick="driveSaveNow()" title="Salva immediatamente su Drive">
+        ☁️ Salva ora
       </button>
     </div>
 
@@ -691,9 +707,11 @@ function driveSetUI(state, msg) {
   const bar = document.getElementById('drive-bar');
   dot.className = 'drive-dot ' + state;
   status.textContent = msg;
+  const actionsDiv = document.getElementById('drive-actions');
   if (state === 'connected') {
     btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11L4 22H20L12 11Z" fill="#0F9D58"/><path d="M20 22L14 11H22L20 22Z" fill="#4285F4" opacity=".5"/><path d="M8 2L2 12L6 19L12 9L8 2Z" fill="#FBBC05"/><path d="M16 2H8L12 9L16 2Z" fill="#EA4335" opacity=".7"/></svg> Disconnetti`;
     btn.onclick = driveDisconnect;
+    if (actionsDiv) actionsDiv.style.display = 'flex';
     // Mostra pulsante cambia cartella se non già presente
     if (!document.getElementById('drive-change-btn')) {
       const changeBtn = document.createElement('button');
@@ -708,6 +726,7 @@ function driveSetUI(state, msg) {
   } else if (state === 'disconnected' || state === 'error') {
     btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11L4 22H20L12 11Z" fill="#0F9D58"/><path d="M20 22L14 11H22L20 22Z" fill="#4285F4" opacity=".5"/><path d="M8 2L2 12L6 19L12 9L8 2Z" fill="#FBBC05"/><path d="M16 2H8L12 9L16 2Z" fill="#EA4335" opacity=".7"/></svg> Connetti`;
     btn.onclick = driveConnect;
+    if (actionsDiv) actionsDiv.style.display = 'none';
     const cb = document.getElementById('drive-change-btn');
     if (cb) cb.remove();
   } else {
@@ -821,6 +840,35 @@ function driveDisconnect() {
   localStorage.removeItem('drive_folder_name');
   driveSetUI('disconnected', 'Drive non connesso');
   showToast('Drive disconnesso', 'info');
+}
+
+// ── AGGIORNA DA DRIVE (bottone "Aggiorna") ──────────────
+async function driveRefresh() {
+  if (!driveToken) { showToast('Connettiti prima a Google Drive', 'error'); return; }
+  const btn = document.getElementById('btn-drive-refresh');
+  if (btn) { btn.textContent = '⏳ Aggiornamento...'; btn.disabled = true; }
+  try {
+    await driveLoadData();
+    showToast('☁️ Dati aggiornati da Drive', 'success');
+  } catch(e) {
+    showToast('Errore aggiornamento: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.textContent = '🔄 Aggiorna'; btn.disabled = false; }
+  }
+}
+
+// ── SALVA ORA SU DRIVE (bottone "Salva ora") ────────────
+async function driveSaveNow() {
+  if (!driveToken) { showToast('Connettiti prima a Google Drive', 'error'); return; }
+  if (!verbali.length) { showToast('Nessun dato da salvare', 'error'); return; }
+  const btn = document.getElementById('btn-drive-save-now');
+  if (btn) { btn.textContent = '⏳ Salvataggio...'; btn.disabled = true; }
+  try {
+    const ok = await driveSaveData();
+    if (ok) showToast('☁️ Salvato su Drive ✓', 'success');
+  } finally {
+    if (btn) { btn.textContent = '☁️ Salva ora'; btn.disabled = false; }
+  }
 }
 
 // Cerca il file dati su Drive (nella cartella selezionata)
